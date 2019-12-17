@@ -24,6 +24,12 @@ type Backend struct {
 	ReverseProxy *httputil.ReverseProxy
 }
 
+// ServerPool holds information about reachable backends
+type ServerPool struct {
+	backends []*Backend
+	current  uint64
+}
+
 func main() {
 
 }
