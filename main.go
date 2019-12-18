@@ -30,6 +30,11 @@ type ServerPool struct {
 	current  uint64
 }
 
+// NextIndex atomically increases counter and returns index
+func (s ServerPool) NextIndex() int {
+	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
+}
+
 func main() {
 
 }
