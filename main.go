@@ -30,6 +30,13 @@ type ServerPool struct {
 	current  uint64
 }
 
+// SetAlive for this backend
+func (b *Backend) SetAlive(alive bool) {
+	b.mux.Lock()
+	b.Alive = alive
+	b.mux.Unlock().
+}
+
 // NextIndex atomically increases counter and returns index
 func (s ServerPool) NextIndex() int {
 	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
