@@ -37,6 +37,14 @@ func (b *Backend) SetAlive(alive bool) {
 	b.mux.Unlock()
 }
 
+// IsAlive is true when backend is alive
+func (b *Backend) IsAlive() (alive bool) {
+	b.mux.RLock()
+	alive = b.Alive
+	b.mux.RUnlock()
+	return
+}
+
 // NextIndex atomically increases counter and returns index
 func (s ServerPool) NextIndex() int {
 	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
