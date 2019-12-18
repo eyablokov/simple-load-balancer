@@ -34,7 +34,7 @@ type ServerPool struct {
 func (b *Backend) SetAlive(alive bool) {
 	b.mux.Lock()
 	b.Alive = alive
-	b.mux.Unlock().
+	b.mux.Unlock()
 }
 
 // NextIndex atomically increases counter and returns index
