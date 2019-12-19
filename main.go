@@ -50,6 +50,23 @@ func (s ServerPool) NextIndex() int {
 	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
 }
 
+// GetNextPeer returns next active peer to take a connection
+func (s *ServerPool) GetNextPeer() *Backend {
+	// loop entire backends to find out Alive backend
+	next := s.NextIndex()
+	l := len(s.backends) + next // start from next and move a full cycle
+	for i := next; i < l; i++ {
+		idx := i % len(s.backends) // take index by modding
+		if s.backends[idx].IsAlive() { // if we have alive backend, use it and store if it is not the original one
+			if i != next {
+				atomic.StoreUint64(&s.current, uint64(idx))
+			}
+			return s.backends[idx]
+		}
+	}
+	return nil
+}
+
 func main() {
 
 }
