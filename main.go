@@ -46,7 +46,7 @@ type ServerPool struct {
 }
 
 // NextIndex atomically increases counter and returns index
-func (s ServerPool) NextIndex() int {
+func (s *ServerPool) NextIndex() int {
 	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
 }
 
@@ -78,6 +78,48 @@ func lb(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	var serverList string
+	var port int
+	flag.StringVar(&serverList, "backends", "", "Load balanced backends, use comma to separate")
+	flag.IntVar(&port, "port", 3030, "Serving port")
+	flag.Parse()
+
+	if len(serverList) == 0 {
+		log.Fatal("Please provide one or more backends to load balance")
+	}
+
+	// parse servers
+	tokens := strings.Split(serverList, ",")
+	for _, tok := range tokens {
+		serverUrl, err := url.Parse(tok)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		proxy := httputil.NewSingleHostReverseProxy(serverUrl)
+		proxy.ErrorHandler = func(writer http.ResponseWriter, request *http.Request, e error) {
+			log.Printf("[%s] %s\n", serverUrl.Host, e.Error())
+			retries := GetRetryFromContext(request)
+			if retries < 3 {
+				select {
+				case <-time.After(10 * time.Millisecond):
+					ctx := context.WithValue(request.Context(), Retry, retries+1)
+					proxy.ServeHTTP(writer, request.WithContext(ctx))
+				}
+				return
+			}
+
+			// mark backend as down after 3 retries
+			serverPool.MarkBackendstatus(serverUrl, false)
+
+			// increase the counter if the same request routing for few attempts with different backends
+			attempts := GetAttemptsFromContext(request)
+			log.Printf("%s(%s) Attempting retry %d\n", request.RemoteAddr, request.URL.Path, attempts)
+			ctx := context.WithValue(request.Context(), Attempts, attempts+1)
+			lb(writer, request.WithContext(ctx))
+		}
+	}
+
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: http.HandlerFunc(lb),
