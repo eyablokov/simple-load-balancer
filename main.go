@@ -24,12 +24,6 @@ type Backend struct {
 	ReverseProxy *httputil.ReverseProxy
 }
 
-// ServerPool holds information about reachable backends
-type ServerPool struct {
-	backends []*Backend
-	current  uint64
-}
-
 // SetAlive for this backend
 func (b *Backend) SetAlive(alive bool) {
 	b.mux.Lock()
@@ -43,6 +37,12 @@ func (b *Backend) IsAlive() (alive bool) {
 	alive = b.Alive
 	b.mux.RUnlock()
 	return
+}
+
+// ServerPool holds information about reachable backends
+type ServerPool struct {
+	backends []*Backend
+	current  uint64
 }
 
 // NextIndex atomically increases counter and returns index
