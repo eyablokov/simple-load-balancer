@@ -78,5 +78,8 @@ func lb(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+	server := http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: http.HandlerFunc(lb),
+	}
 }
