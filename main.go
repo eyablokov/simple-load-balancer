@@ -50,6 +50,16 @@ func (s *ServerPool) NextIndex() int {
 	return int(atomic.AddUint64(&s.current, uint64(1)) % uint64(len(s.backends)))
 }
 
+// MarkBackendStatus changes backend status
+func (s *ServerPool) MarkBackendStatus(backendUrl *url.URL, alive bool) {
+	for _, b := range s.backends {
+		if b.URL.String() == backendUrl.String() {
+			b.SetAlive(alive)
+			break
+		}
+	}
+}
+
 // GetNextPeer returns next active peer to take a connection
 func (s *ServerPool) GetNextPeer() *Backend {
 	// loop entire backends to find out Alive backend
@@ -67,8 +77,31 @@ func (s *ServerPool) GetNextPeer() *Backend {
 	return nil
 }
 
+// GetAttemptsFromContext returns attempts for request
+func GetAttemptsFromContext(r *http.Request) int {
+	if attempts, ok := r.Context().Value(Attempts).(int); ok {
+		return attempts
+	}
+	return 1
+}
+
+// GetRetryFromContext returns attempts for request
+func GetRetryFromContext(r *http.Request) int {
+	if retry, ok := r.Context().Value(Retry).(int); ok {
+		return retry
+	}
+	return 0
+}
+
 // lb balances icoming requests
 func lb(w http.ResponseWriter, r *http.Request) {
+	attempts := GetAttemptsFromContext(r)
+	if attempts > 3 {
+		log.Printf("%s(%s) Max attempts reached, terminating\n", r.RemoteAddr, r.URL.Path)
+		http.Error(w, "Service not available", http.StatusServiceUnavailable)
+		return
+	}
+
 	peer := serverPool.GetNextPeer()
 	if peer != nil {
 		peer.ReverseProxy.ServeHTTP(w, r)
@@ -76,6 +109,8 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
+
+var serverPool ServerPool
 
 func main() {
 	var serverList string
@@ -110,7 +145,7 @@ func main() {
 			}
 
 			// mark backend as down after 3 retries
-			serverPool.MarkBackendstatus(serverUrl, false)
+			serverPool.MarkBackendStatus(serverUrl, false)
 
 			// increase the counter if the same request routing for few attempts with different backends
 			attempts := GetAttemptsFromContext(request)
