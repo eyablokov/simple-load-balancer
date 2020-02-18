@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+// Define integer keys using iota
+const (
+	Attempts int = iota
+	Retry
+)
 
 // Backend holds the data about server
 type Backend struct {
