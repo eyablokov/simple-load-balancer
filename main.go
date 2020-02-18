@@ -115,6 +115,18 @@ func lb(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Service not available", http.StatusServiceUnavailable)
 }
 
+// isBackendAlive checks whether a backend is alive by establishing a TCP connection
+func isBackendAlive(u *url.URL) bool {
+	timeout := 2 * time.Second
+	conn, err := net.DialTimeout("tcp", u.Host, timeout)
+	if err != nil {
+		log.Println("Site unavailable, error: ", err)
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
 var serverPool ServerPool
 
 func main() {
