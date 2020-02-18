@@ -82,6 +82,19 @@ func (s *ServerPool) GetNextPeer() *Backend {
 	return nil
 }
 
+// HealthCheck pings backends and updates the status
+func (s *ServerPool) HealthCheck() {
+	for _, b := range s.backends {
+		status := "up"
+		alive := isBackendAlive(b.URL)
+		b.SetAlive(alive)
+		if !alive {
+			status = "down"
+		}
+		log.Printf("%s [%s]\n", b.URL, status)
+	}
+}
+
 // GetAttemptsFromContext returns attempts for request
 func GetAttemptsFromContext(r *http.Request) int {
 	if attempts, ok := r.Context().Value(Attempts).(int); ok {
@@ -125,6 +138,19 @@ func isBackendAlive(u *url.URL) bool {
 	}
 	_ = conn.Close()
 	return true
+}
+
+// healthCheck runs a routine for backends status checking every 2 minutes
+func healthCheck() {
+	t := time.NewTicker(time.Minute * 2)
+	for {
+		select {
+		case <-t.C:
+			log.Println("Starting health check...")
+			serverPool.HealthCheck()
+			log.Println("Health check completed")
+		}
+	}
 }
 
 var serverPool ServerPool
