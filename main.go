@@ -15,9 +15,11 @@ import (
 	"time"
 )
 
+type key int
+
 // Define integer keys using iota
 const (
-	Attempts int = iota
+	Attempts key = iota
 	Retry
 )
 
